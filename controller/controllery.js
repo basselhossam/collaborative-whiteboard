@@ -1,23 +1,26 @@
-var mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
-mongoose.connect('mongodb://test:test@ds161630.mlab.com:61630/rooms');
-
-var schema = new mongoose.Schema({
-  lines: []
-  
+mongoose.connect(process.env.DB, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
 });
 
-var mongocoll = mongoose.model('rooms',schema);
+const roomSchema = new mongoose.Schema({
+  lines: []
+});
+
+const roomModel = mongoose.model('rooms', roomSchema);
 
 
 module.exports = function(app){
-
+  //Home page
   app.get('/', function(req,res){
     res.render('home');
   });
 
+  //Open Existing room
   app.get('/:id', function(req,res){
-    mongocoll.findById(req.params.id, function(err, room) {
+    roomModel.findById(req.params.id, function(err, room) {
       if (err){
         res.render('error');
       }
@@ -30,15 +33,17 @@ module.exports = function(app){
     });
   });
 
+  //Create new room
   app.post('/', function(req,res){
-    var item = mongocoll({lines : []}).save(function(err, room){
+    roomModel({lines : []}).save(function(err, room){
       if (err) throw err;
       res.send(room._id);
     });
   });
 
+  //Add new line to room
   app.post('/addline', function(req,res){
-    mongocoll.findById(req.body.id, function(err, room) {
+    roomModel.findById(req.body.id, function(err, room) {
       if (err) throw err;
 
       // push to the room lines
@@ -54,8 +59,9 @@ module.exports = function(app){
     });
   });
 
+  //Clear All Lines from room
   app.post('/clearlines', function(req,res){
-    mongocoll.findById(req.body.id, function(err, room) {
+    roomModel.findById(req.body.id, function(err, room) {
       if (err) throw err;
 
       // push to the room lines

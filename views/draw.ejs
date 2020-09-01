@@ -1,285 +1,14 @@
-<html>
+<!doctype html>
+<html lang="en">
 
 <head>
-    <!-- Load the Paper.js library -->
-    <script type="text/javascript" src="paper-full.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.js"></script>
-
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="bootstrap-slider.min.css">
-    <script type="text/javascript" src="bootstrap-slider.min.js"></script>
     <link rel="stylesheet" href="tinytools.toggleswitch.min.css">
-    <script type="text/javascript" src="tinytools.toggleswitch.min.js"></script>
-    <!-- Define inlined JavaScript -->
-    <script type="text/javascript">
-        var socket = io();
-        var myroom = {
-            "id": "<%= id %>",
-            "lines": '<%= lines %>'
-        };
-        myroom.lines = JSON.parse(myroom.lines.replace(/&#34;/g, '"'));
-        socket.on('connect', function() {
-            // call the server-side function 'adduser' and send one parameter (value of prompt)
-            console.log("connected");
-            socket.emit('addusertoroom', myroom.id);
-        });
-        socket.on('updateroom', function(username, data) {
-            console.log('<b>' + username + ':</b> ' + data + '<br>');
-        });
-        var color = 'black';
-        var bsize = 1;
-        var eraseren = false;
-        paper.install(window);
-
-        window.onload = function() {
-            // when the client clicks SEND
-            $('#datasend').click(function() {
-                if (document.getElementById('name').readOnly == true) {
-                    var message = $('#chatdata').val();
-                    if (message.length > 0) {
-                        $('#chatdata').val('');
-                        // tell server to execute 'sendchat' and send along one parameter
-                        socket.emit('sendchat', message);
-                        document.getElementById("chatdata").focus();
-                    }
-                } else {
-                    alert("Please, enter your name.");
-                    return;
-                }
-            });
-
-            $('#namebutton').click(function() {
-            	if(document.getElementById("name").readOnly != true){
-	                if (nameform.username.value == '') {
-	                    alert("Please, enter your name.");
-	                    return;
-	                }
-	                document.getElementById("name").readOnly = true;
-	                socket.emit('setusername', nameform.username.value);
-	            }
-            });
-
-            // when the client hits ENTER on their keyboard
-            $('#chatdata').keyup(function(e) {
-                if (e.which == 13) {
-                    if (document.getElementById('name').readOnly == true) {
-                        $(this).blur();
-                        $('#datasend').focus().click();
-                    } else {
-                        alert("Please, enter your name.");
-                        return;
-                    }
-                }
-            });
-
-            /*$('#chat').click(function(){
-      			socket.emit('startchat');
-			});*/
-
-            // listener, whenever the server emits 'updatechat', this updates the chat body
-            socket.on('updatechat', function(username, data) {
-                //var str=data.split(" ");
-                console.log(username);
-                $('#conversation').append($('<b>', {
-                    text: username + ": ",
-                    css: {
-                        color: "#6aaeed"
-                    }
-                }));
-                $('#conversation').append($("<span>", {
-                    text: data,
-                    css: {
-                        width: "100%"
-                    }
-                }));
-                $('#conversation').append('<br>');
-                $('#conversation').animate({
-                    scrollTop: $('#conversation').prop("scrollHeight")
-                }, 500);
-                parseemoji();
-            });
-
-            // when the client hits ENTER on their keyboard
-            $('#data').keypress(function(e) {
-                if (e.which == 13) {
-                    $(this).blur();
-                    $('#datasend').focus().click();
-                }
-            });
-
-            $("#ToggleSwitchSample").toggleSwitch({
-                onLabel: "Pen",
-                offLabel: "Eraser",
-                onToggle: function() {
-                    eraseren = $("#ToggleSwitchSample").is(':checked') ? false : true;
-                }
-            });
-            $("#room-no").html(myroom.id);
-            paper.setup('myCanvas');
-            // Create a simple drawing tool:
-            var tool = new Tool();
-            var path;
-
-            var rect = new Path.Rectangle({
-                point: [0, 0],
-                size: [view.size.width, view.size.height],
-                strokeColor: 'white',
-                selected: true
-            });
-            rect.sendToBack();
-            rect.fillColor = 'white';
-
-            // Define a mousedown and mousedrag handler
-            tool.onMouseDown = function(event) {
-                path = new Path();
-                if (eraseren) {
-                    path.strokeColor = 'white';
-                    path.strokeWidth = 10;
-                } else {
-                    path.strokeColor = color;
-                    path.strokeWidth = bsize;
-                }
-                path.add(event.point);
-            }
-
-            tool.onMouseDrag = function(event) {
-                path.add(event.point);
-            }
-
-            tool.onMouseUp = function(event) {
-                var mydata = {
-                    'path': path,
-                    'id': myroom.id
-                };
-                mydata.path.strokeWidth = path.strokeWidth;
-                console.log(mydata);
-                $.ajax({
-                    type: 'POST',
-                    contentType: 'application/json',
-                    url: '/addline',
-                    data: JSON.stringify(mydata),
-                    success: function(response) {
-                        console.log(response);
-                        socket.emit('sendline', path);
-                    }
-                });
-            }
-
-            myroom.lines.forEach(function(item, index) {
-                var path3 = new Path();
-                path3.strokeColor = item[1].strokeColor;
-                if (item[1].strokeWidth == null)
-                    item[1].strokeWidth = 1;
-                path3.strokeWidth = item[1].strokeWidth;
-                item[1].segments.forEach(function(item1, index1) {
-                    path3.add(new Point(item1[0], item1[1]));
-                });
-            });
-
-            socket.on('emitline', function(data) {
-                var path2 = new Path();
-                path2.strokeColor = data[1].strokeColor;
-                if (data[1].strokeWidth == null)
-                    data[1].strokeWidth = 1;
-                path2.strokeWidth = data[1].strokeWidth;
-                data[1].segments.forEach(function(item1, index1) {
-                    path2.add(new Point(item1[0], item1[1]));
-                });
-            });
-
-            socket.on('emitclear', function() {
-                var r = confirm("One user of this room cleared the drawing and it is about to be deleted\nDo you want to save it before deleting it?");
-                if (r == true) {
-                    document.getElementById('download').click();
-                    paper.project.activeLayer.removeChildren();
-                    paper.view.draw();
-                } else {
-                    paper.project.activeLayer.removeChildren();
-                    paper.view.draw();
-                }
-                var rect = new Path.Rectangle({
-                    point: [0, 0],
-                    size: [view.size.width, view.size.height],
-                    strokeColor: 'white',
-                    selected: true
-                });
-                rect.sendToBack();
-                rect.fillColor = 'white';
-            });
-
-            document.getElementById('download').addEventListener('click', function() {
-                downloadCanvas(this, 'myCanvas', 'mydraw.png');
-            }, false);
-
-            document.getElementById('clear').addEventListener('click', function() {
-                paper.project.activeLayer.removeChildren();
-                paper.view.draw();
-                var rect = new Path.Rectangle({
-                    point: [0, 0],
-                    size: [view.size.width, view.size.height],
-                    strokeColor: 'white',
-                    selected: true
-                });
-                rect.sendToBack();
-                rect.fillColor = 'white';
-                var mydata = {
-                    'id': myroom.id
-                };
-                $.ajax({
-                    type: 'POST',
-                    contentType: 'application/json',
-                    url: '/clearlines',
-                    data: JSON.stringify(mydata),
-                    success: function(response) {
-                        console.log(response);
-                        socket.emit('clearlines');
-                    }
-                });
-            }, false);
-
-            // With JQuery
-            $("#ex6").slider();
-            $("#ex6").on("slide", function(slideEvt) {
-                bsize = slideEvt.value;
-                $("#ex6SliderVal").text(slideEvt.value);
-            });
-        }
-
-        function mouseOverColor(x) {}
-
-        function clickColor(x, y, z) {
-            color = x;
-            $("#colorcode").html(x);
-            $("#colorcode").css('color', x);
-        }
-
-        function downloadCanvas(link, canvasId, filename) {
-            link.href = document.getElementById(canvasId).toDataURL();
-            link.download = filename;
-        }
-
-        function parseemoji() {
-            var textchat = $("#conversation").html();
-            textchat = textchat.replace(/B\|/g, '&#x1F60E;');
-            textchat = textchat.replace(/:D/g, '&#x1F603;');
-            textchat = textchat.replace(/\^_\^/g, '&#x1F604;');
-            textchat = textchat.replace(/-_-/g, '&#x1F611;');
-            textchat = textchat.replace(/;\)/g, '&#x1F609;');
-            textchat = textchat.replace(/:P/g, '&#x1F61C;');
-            textchat = textchat.replace(/:\(/g, '&#x1F60C;');
-            textchat = textchat.replace(/>_</g, '&#x1F62B;');
-            textchat = textchat.replace(/3:\)/g, '&#x1F608;');
-            textchat = textchat.replace(/:\)/g, '&#x1F60A;');
-            textchat = textchat.replace(/:\//g, '&#x1F615;');
-            textchat = textchat.replace(/:'\(/g, '&#x1F622;');
-            textchat = textchat.replace(/:joy:/g, '&#x1F62D;');
-            $("#conversation").html(textchat);
-        }
-    </script>
+    <title>Room #<%= id %></title>
 </head>
 
-<body style="background-color:#3f214f">
+<body style="background-color:#3f214f;height: 100vh">
     <div style="height:100%" class="col-md-3">
         <div class="col-md-12" style="text-align:center;">
             <h3 style="color:#b7f7ec;">Room ID: <span style="font-size:16px;color:#b7f7ec;" id= "room-no"></span></h3>
@@ -452,6 +181,276 @@
             </form>
         </div>
     </div>
+
+    <!-- Load the Paper.js library -->
+    <script type="text/javascript" src="paper-full.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.js"></script>
+    <script type="text/javascript" src="bootstrap-slider.min.js"></script>
+    <script type="text/javascript" src="tinytools.toggleswitch.min.js"></script>
+    <!-- Define inlined JavaScript -->
+    <script type="text/javascript">
+        var socket = io();
+        var myroom = {
+            "id": "<%= id %>",
+            "lines": '<%= lines %>'
+        };
+        myroom.lines = JSON.parse(myroom.lines.replace(/&#34;/g, '"'));
+        socket.on('connect', function() {
+            // call the server-side function 'adduser' and send one parameter (value of prompt)
+            console.log("connected");
+            socket.emit('addusertoroom', myroom.id);
+        });
+        socket.on('updateroom', function(username, data) {
+            console.log('<b>' + username + ':</b> ' + data + '<br>');
+        });
+        var color = 'black';
+        var bsize = 1;
+        var eraseren = false;
+        paper.install(window);
+
+        window.onload = function() {
+            // when the client clicks SEND
+            $('#datasend').click(function() {
+                if (document.getElementById('name').readOnly == true) {
+                    var message = $('#chatdata').val();
+                    if (message.length > 0) {
+                        $('#chatdata').val('');
+                        // tell server to execute 'sendchat' and send along one parameter
+                        socket.emit('sendchat', message);
+                        document.getElementById("chatdata").focus();
+                    }
+                } else {
+                    alert("Please, enter your name.");
+                    return;
+                }
+            });
+
+            $('#namebutton').click(function() {
+                if(document.getElementById("name").readOnly != true){
+                    if (nameform.username.value == '') {
+                        alert("Please, enter your name.");
+                        return;
+                    }
+                    document.getElementById("name").readOnly = true;
+                    socket.emit('setusername', nameform.username.value);
+                }
+            });
+
+            // when the client hits ENTER on their keyboard
+            $('#chatdata').keyup(function(e) {
+                if (e.which == 13) {
+                    if (document.getElementById('name').readOnly == true) {
+                        $(this).blur();
+                        $('#datasend').focus().click();
+                    } else {
+                        alert("Please, enter your name.");
+                        return;
+                    }
+                }
+            });
+
+            // listener, whenever the server emits 'updatechat', this updates the chat body
+            socket.on('updatechat', function(username, data) {
+                //var str=data.split(" ");
+                const conversation = $('#conversation');
+                console.log(username);
+                conversation.append($('<b>', {
+                    text: username + ": ",
+                    css: {
+                        color: "#6aaeed"
+                    }
+                }));
+                conversation.append($("<span>", {
+                    text: data,
+                    css: {
+                        width: "100%"
+                    }
+                }));
+                conversation.append('<br>');
+                conversation.animate({
+                    scrollTop: conversation.prop("scrollHeight")
+                }, 500);
+                parseemoji();
+            });
+
+            // when the client hits ENTER on their keyboard
+            $('#data').keypress(function(e) {
+                if (e.which == 13) {
+                    $(this).blur();
+                    $('#datasend').focus().click();
+                }
+            });
+
+            $("#ToggleSwitchSample").toggleSwitch({
+                onLabel: "Pen",
+                offLabel: "Eraser",
+                onToggle: function() {
+                    eraseren = !$("#ToggleSwitchSample").is(':checked');
+                }
+            });
+            $("#room-no").html(myroom.id);
+            paper.setup('myCanvas');
+            // Create a simple drawing tool:
+            var tool = new Tool();
+            var path;
+
+            var rect = new Path.Rectangle({
+                point: [0, 0],
+                size: [view.size.width, view.size.height],
+                strokeColor: 'white',
+                selected: true
+            });
+            rect.sendToBack();
+            rect.fillColor = 'white';
+
+            // Define a mousedown and mousedrag handler
+            tool.onMouseDown = function(event) {
+                path = new Path();
+                if (eraseren) {
+                    path.strokeColor = 'white';
+                    path.strokeWidth = 10;
+                } else {
+                    path.strokeColor = color;
+                    path.strokeWidth = bsize;
+                }
+                path.add(event.point);
+            }
+
+            tool.onMouseDrag = function(event) {
+                path.add(event.point);
+            }
+
+            tool.onMouseUp = function(event) {
+                var mydata = {
+                    'path': path,
+                    'id': myroom.id
+                };
+                mydata.path.strokeWidth = path.strokeWidth;
+                console.log(mydata);
+                $.ajax({
+                    type: 'POST',
+                    contentType: 'application/json',
+                    url: '/addline',
+                    data: JSON.stringify(mydata),
+                    success: function(response) {
+                        console.log(response);
+                        socket.emit('sendline', path);
+                    }
+                });
+            }
+
+            myroom.lines.forEach(function(item, index) {
+                var path3 = new Path();
+                path3.strokeColor = item[1].strokeColor;
+                if (item[1].strokeWidth == null)
+                    item[1].strokeWidth = 1;
+                path3.strokeWidth = item[1].strokeWidth;
+                item[1].segments.forEach(function(item1, index1) {
+                    path3.add(new Point(item1[0], item1[1]));
+                });
+            });
+
+            socket.on('emitline', function(data) {
+                var path2 = new Path();
+                path2.strokeColor = data[1].strokeColor;
+                if (data[1].strokeWidth == null)
+                    data[1].strokeWidth = 1;
+                path2.strokeWidth = data[1].strokeWidth;
+                data[1].segments.forEach(function(item1, index1) {
+                    path2.add(new Point(item1[0], item1[1]));
+                });
+            });
+
+            socket.on('emitclear', function() {
+                var r = confirm("One user of this room cleared the drawing and it is about to be deleted\nDo you want to save it before deleting it?");
+                if (r) {
+                    document.getElementById('download').click();
+                    paper.project.activeLayer.removeChildren();
+                    paper.view.draw();
+                } else {
+                    paper.project.activeLayer.removeChildren();
+                    paper.view.draw();
+                }
+                var rect = new Path.Rectangle({
+                    point: [0, 0],
+                    size: [view.size.width, view.size.height],
+                    strokeColor: 'white',
+                    selected: true
+                });
+                rect.sendToBack();
+                rect.fillColor = 'white';
+            });
+
+            document.getElementById('download').addEventListener('click', function() {
+                downloadCanvas(this, 'myCanvas', 'mydraw.png');
+            }, false);
+
+            document.getElementById('clear').addEventListener('click', function() {
+                paper.project.activeLayer.removeChildren();
+                paper.view.draw();
+                var rect = new Path.Rectangle({
+                    point: [0, 0],
+                    size: [view.size.width, view.size.height],
+                    strokeColor: 'white',
+                    selected: true
+                });
+                rect.sendToBack();
+                rect.fillColor = 'white';
+                var mydata = {
+                    'id': myroom.id
+                };
+                $.ajax({
+                    type: 'POST',
+                    contentType: 'application/json',
+                    url: '/clearlines',
+                    data: JSON.stringify(mydata),
+                    success: function(response) {
+                        console.log(response);
+                        socket.emit('clearlines');
+                    }
+                });
+            }, false);
+
+            // With JQuery
+            $("#ex6").slider();
+            $("#ex6").on("slide", function(slideEvt) {
+                bsize = slideEvt.value;
+                $("#ex6SliderVal").text(slideEvt.value);
+            });
+        }
+
+        function mouseOverColor(x) {}
+
+        function clickColor(x, y, z) {
+            color = x;
+            $("#colorcode").html(x);
+            $("#colorcode").css('color', x);
+        }
+
+        function downloadCanvas(link, canvasId, filename) {
+            link.href = document.getElementById(canvasId).toDataURL();
+            link.download = filename;
+        }
+
+        function parseemoji() {
+            var textchat = $("#conversation").html();
+            textchat = textchat.replace(/B\|/g, '&#x1F60E;');
+            textchat = textchat.replace(/:D/g, '&#x1F603;');
+            textchat = textchat.replace(/\^_\^/g, '&#x1F604;');
+            textchat = textchat.replace(/-_-/g, '&#x1F611;');
+            textchat = textchat.replace(/;\)/g, '&#x1F609;');
+            textchat = textchat.replace(/:P/g, '&#x1F61C;');
+            textchat = textchat.replace(/:\(/g, '&#x1F60C;');
+            textchat = textchat.replace(/>_</g, '&#x1F62B;');
+            textchat = textchat.replace(/3:\)/g, '&#x1F608;');
+            textchat = textchat.replace(/:\)/g, '&#x1F60A;');
+            textchat = textchat.replace(/:\//g, '&#x1F615;');
+            textchat = textchat.replace(/:'\(/g, '&#x1F622;');
+            textchat = textchat.replace(/:joy:/g, '&#x1F62D;');
+            $("#conversation").html(textchat);
+        }
+    </script>
 </body>
 
 </html>

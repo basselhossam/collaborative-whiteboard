@@ -1,11 +1,13 @@
-var express = require('express');
-var bodyParser = require('body-parser');
-var app = express();
-var http = require('http');
-var server = http.createServer(app);
-var io = require('socket.io').listen(server);
-var maincontroller = require('./controller/controllery');
-var socketcontroller = require('./controller/socketcontroller');
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
+const http = require('http');
+const dotenv = require('dotenv');
+const server = http.createServer(app);
+const io = require('socket.io').listen(server);
+dotenv.config();
+const maincontroller = require('./controller/controllery');
+const socketcontroller = require('./controller/socketcontroller');
 app.set('view engine', 'ejs');
 
 app.use(express.static('./jmagic'));
@@ -15,5 +17,5 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 })); 
 maincontroller(app);
 socketcontroller(io);
-server.listen(3000);
+server.listen(process.env.PORT || 3000);
 console.log('you are waiting 3000');

@@ -17,5 +17,6 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 })); 
 maincontroller(app);
 socketcontroller(io);
-server.listen(process.env.PORT || 3000);
-console.log('you are waiting 3000');
+const appPort = process.env.PORT || 3000;
+server.listen(appPort);
+console.log('you are waiting ' + appPort);
